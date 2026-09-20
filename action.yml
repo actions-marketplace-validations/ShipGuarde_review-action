@@ -19,6 +19,20 @@ inputs:
     description: 'Deployment / preview URL to drive browser checks against (optional).'
     required: false
     default: ''
+  flow:
+    description: >-
+      A plain-English journey for the vision agent to drive on target-url, e.g.
+      "Click the Status filter, choose Failed, confirm only Failed rows remain".
+      Optional; saved project tests with an on-PR policy run regardless.
+    required: false
+    default: ''
+  github-token:
+    description: >-
+      GitHub token used to clone the repo and post the verdict when no ShipGuarde
+      App is installed. Defaults to the workflow token; grant it contents: read,
+      pull-requests: write and checks: write in the job's permissions block.
+    required: false
+    default: ${{ github.token }}
   agents:
     description: 'Comma-separated agent kinds to run (optional; defaults to the project policy).'
     required: false
@@ -37,5 +51,5 @@ outputs:
   verdict:
     description: 'The verdict decision (ship | ship_with_warnings | block | inconclusive).'
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'index.mjs'

@@ -4,7 +4,15 @@
 import { appendFileSync, readFileSync } from 'node:fs';
 
 function input(name, def = '') {
-  return process.env[`INPUT_${name.toUpperCase().replace(/-/g, '_')}`] ?? def;
+  // GitHub exposes inputs as INPUT_<NAME> uppercased with spaces turned into
+  // underscores. Hyphens are kept: `api-key` arrives as INPUT_API-KEY. The
+  // underscore form is read too, for anyone invoking this outside the runner.
+  const upper = name.toUpperCase();
+  return (
+    process.env[`INPUT_${upper}`] ??
+    process.env[`INPUT_${upper.replace(/-/g, '_')}`] ??
+    def
+  );
 }
 function setOutput(name, value) {
   const file = process.env.GITHUB_OUTPUT;
@@ -29,6 +37,8 @@ const apiKey = input('api-key');
 const projectId = input('project-id');
 const apiUrl = input('api-url', 'https://api.shipguarde.com').replace(/\/$/, '');
 const targetUrl = input('target-url');
+const githubToken = input('github-token');
+const flow = input('flow').trim();
 const agents = input('agents')
   .split(',')
   .map((s) => s.trim())
@@ -50,6 +60,14 @@ try {
         number: ev.pull_request.number,
         headSha: ev.pull_request.head.sha,
         baseSha: ev.pull_request.base.sha,
+        // The preview is the PR's deployment: recorded on the run so browser
+        // findings count against this build and the diff-aware flow suggestion
+        // has somewhere to run.
+        ...(targetUrl ? { deploymentUrl: targetUrl } : {}),
+        // The workflow token lets the API clone a private repo and post the
+        // verdict without a ShipGuarde App installation. It is held for the run
+        // only and never persisted.
+        ...(githubToken ? { token: githubToken } : {}),
       };
     }
   }
@@ -64,6 +82,7 @@ const body = {
   agentKinds: agents,
   ...(targetUrl ? { targetUrl } : {}),
   ...(pr ? { pr } : {}),
+  ...(flow ? { adhocFlow: { description: flow } } : {}),
 };
 
 const createRes = await fetch(`${apiUrl}/api/runs`, {

@@ -41,6 +41,17 @@ The job fails if the verdict is `block`, so a required check keeps risky changes
     target-url: https://pr-${{ github.event.number }}.preview.example.com
 ```
 
+**Drive a journey on the preview and deny the merge if it breaks**
+
+```yaml
+- uses: ShipGuarde/review-action@v1
+  with:
+    api-key: ${{ secrets.SHIPGUARDE_API_KEY }}
+    project-id: your-project-id
+    target-url: https://pr-${{ github.event.number }}.preview.example.com
+    flow: Click the Status filter, choose Failed, and confirm only Failed rows remain.
+```
+
 **Run specific agents and also fail on warnings**
 
 ```yaml
@@ -64,6 +75,21 @@ The job fails if the verdict is `block`, so a required check keeps risky changes
 - run: echo "Verdict was ${{ steps.shipguarde.outputs.verdict }} (run ${{ steps.shipguarde.outputs.run-id }})"
 ```
 
+## Private repos and the PR comment without the App
+
+The Action passes the workflow's own token to ShipGuarde (input `github-token`, default `${{ github.token }}`). With it, a private repo is cloned and the verdict is posted back to the PR with no ShipGuarde GitHub App installed. Grant the job what those need:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+```
+
+Leave the permissions out and the job still gates on the verdict; you lose the PR comment and, on a private repo, the code agents.
+
+The token is held by ShipGuarde for the run and dropped once the verdict is published. It is never written to the run record.
+
 ## Inputs
 
 | Name              | Required | Default                      | Description                                                                 |
@@ -72,6 +98,8 @@ The job fails if the verdict is `block`, so a required check keeps risky changes
 | `project-id`      | yes      | —                            | ShipGuarde project id to run against.                                        |
 | `api-url`         | no       | `https://api.shipguarde.com` | ShipGuarde API base URL.                                                     |
 | `target-url`      | no       | `''`                         | Deployment / preview URL to drive browser checks against.                   |
+| `github-token`    | no       | `${{ github.token }}`        | Token for cloning a private repo and posting the verdict without the App.   |
+| `flow`            | no       | `''`                         | A plain-English journey for the vision agent to drive on `target-url`.      |
 | `agents`          | no       | `''`                         | Comma-separated agent kinds to run. Defaults to the project policy.         |
 | `fail-on`         | no       | `block`                      | When to fail the job: `block`, `block_or_warn`, or `never`.                  |
 | `timeout-seconds` | no       | `900`                        | Maximum seconds to wait for the verdict.                                     |
@@ -96,7 +124,7 @@ A run that errors, is cancelled, or times out without a verdict also fails the j
 ## Notes
 
 - Runs in PR mode and posts the verdict back to the pull request. On non-PR events it falls back to an on-demand run.
-- Zero dependencies — runs on `node20`, nothing to install.
+- Zero dependencies — runs on `node24`, nothing to install.
 
 ## Links
 
